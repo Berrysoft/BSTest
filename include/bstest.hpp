@@ -98,8 +98,8 @@ namespace bstest
     }
 
 #define __call_assert_func(func, ...) func(__VA_ARGS__, __CURRENT_FUNC__, __FILE__, __LINE__)
-#define is_true(value) __call_assert_func(is_true, !!value, #value)
-#define is_false(value) __call_assert_func(is_false, !!value, #value)
+#define is_true(value) __call_assert_func(is_true, !!(value), #value)
+#define is_false(value) __call_assert_func(is_false, !!(value), #value)
 #define are_equal(expected, actual) __call_assert_func(are_equal, expected, actual)
 #define are_noteq(expected, actual) __call_assert_func(are_noteq, expected, actual)
 #define throws_ex(type, action, pred) __call_assert_func(throws_ex<type>, action, pred)
