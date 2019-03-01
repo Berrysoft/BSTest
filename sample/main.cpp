@@ -46,32 +46,26 @@ int main()
     test_manager manager{};
     manager.add<test_class1>();
     manager.add<test_class2>();
+    println("manager.run():");
+    for (auto& e : manager.run())
+    {
+        println(e.what());
+        println();
+    }
+    println("manager.run<test_class2>():");
+    for (auto& e : manager.run<test_class2>())
+    {
+        println(e.what());
+        println();
+    }
+    println("manager.run_throw<test_class1>(\"test2\"):");
     try
     {
-        manager.run();
+        manager.run_throw<test_class1>("test2");
     }
     catch (const assert_failed& e)
     {
-        println(cerr, "Test failed:\n{}", e.what());
-    }
-    println();
-    try
-    {
-        manager.run<test_class2>();
-    }
-    catch (const assert_failed& e)
-    {
-        println(cerr, "Test2 failed:\n{}", e.what());
-    }
-    println();
-    try
-    {
-        manager.run<test_class1>("test2");
-        println("Test success!");
-    }
-    catch (const assert_failed& e)
-    {
-        println(cerr, "Test1.test2 failed:\n{}", e.what());
+        println(e.what());
     }
     return 0;
 }

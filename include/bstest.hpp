@@ -5,8 +5,10 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <sf/sformat.hpp>
 #include <typeindex>
+#include <vector>
 
 #if defined(_MSC_VER)
 #define __CURRENT_FUNC__ __FUNCSIG__
@@ -110,14 +112,30 @@ namespace bstest
     public:
         virtual ~test_base() {}
 
-        void run()
+        void run_throw()
         {
             for (auto& pair : m_tests)
             {
                 (pair.second)();
             }
         }
-        void run(const std::string& name)
+        std::vector<assert_failed> run()
+        {
+            std::vector<assert_failed> vec{};
+            for (auto& pair : m_tests)
+            {
+                try
+                {
+                    (pair.second)();
+                }
+                catch (const assert_failed& e)
+                {
+                    vec.push_back(e);
+                }
+            }
+            return vec;
+        }
+        void run_throw(const std::string& name)
         {
             auto it{ m_tests.find(name) };
             if (it != m_tests.end())
@@ -125,9 +143,25 @@ namespace bstest
                 (it->second)();
             }
         }
+        std::optional<assert_failed> run(const std::string& name)
+        {
+            try
+            {
+                auto it{ m_tests.find(name) };
+                if (it != m_tests.end())
+                {
+                    (it->second)();
+                }
+            }
+            catch (const assert_failed& e)
+            {
+                return e;
+            }
+            return std::nullopt;
+        }
 
     protected:
-        void add_test(std::string_view name, std::function<void()> func) { m_tests.emplace(name, move(func)); }
+        void add_test(std::string name, std::function<void()> func) { m_tests.emplace(std::move(name), std::move(func)); }
     };
 
 #define add_test(name) add_test(#name, [this]() { name(); })
@@ -158,12 +192,24 @@ namespace bstest
             m_test_classes[std::type_index{ typeid(T) }] = std::make_unique<T>(std::forward<Args>(args)...);
         }
 
-        void run()
+        void run_throw()
         {
             for (auto& pair : m_test_classes)
             {
-                pair.second->run();
+                pair.second->run_throw();
             }
+        }
+        std::vector<assert_failed> run()
+        {
+            std::vector<assert_failed> vec{};
+            for (auto& pair : m_test_classes)
+            {
+                for (auto& e : pair.second->run())
+                {
+                    vec.push_back(std::move(e));
+                }
+            }
+            return vec;
         }
         template <typename T>
         T* get_test()
@@ -176,20 +222,38 @@ namespace bstest
             return nullptr;
         }
         template <typename T>
-        void run()
+        void run_throw()
         {
             if (test_base * cls{ get_test<T>() })
             {
-                cls->run();
+                cls->run_throw();
             }
         }
         template <typename T>
-        void run(const std::string& name)
+        std::vector<assert_failed> run()
         {
             if (test_base * cls{ get_test<T>() })
             {
-                cls->run(name);
+                return cls->run();
             }
+            return {};
+        }
+        template <typename T>
+        void run_throw(const std::string& name)
+        {
+            if (test_base * cls{ get_test<T>() })
+            {
+                cls->run_throw(name);
+            }
+        }
+        template <typename T>
+        std::optional<assert_failed> run(const std::string& name)
+        {
+            if (test_base * cls{ get_test<T>() })
+            {
+                return cls->run(name);
+            }
+            return std::nullopt;
         }
     };
 } // namespace bstest
