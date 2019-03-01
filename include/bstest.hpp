@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <sf/sformat.hpp>
+#include <typeindex>
 
 #if defined(_MSC_VER)
 #define __CURRENT_FUNC__ __FUNCSIG__
@@ -134,13 +135,27 @@ namespace bstest
     class test_manager
     {
     private:
-        std::map<std::string, std::unique_ptr<test_base>> m_test_classes;
+        std::map<std::type_index, std::unique_ptr<test_base>> m_test_classes;
 
     public:
         template <typename T, typename... Args>
         void add(Args&&... args)
         {
-            m_test_classes.emplace(typeid(T).name(), std::make_unique<T>(std::forward<Args>(args)...));
+            m_test_classes.emplace(std::type_index{ typeid(T) }, std::make_unique<T>(std::forward<Args>(args)...));
+        }
+        template <typename T>
+        void remove()
+        {
+            auto it{ m_test_classes.find(std::type_index{ typeid(T) }) };
+            if (it != m_test_classes.end())
+            {
+                m_test_classes.erase(it);
+            }
+        }
+        template <typename T, typename... Args>
+        void reset(Args&&... args)
+        {
+            m_test_classes[std::type_index{ typeid(T) }] = std::make_unique<T>(std::forward<Args>(args)...);
         }
 
         void run()
@@ -150,28 +165,30 @@ namespace bstest
                 pair.second->run();
             }
         }
-        template <typename T = test_base>
-        T* get_test(const std::string& name)
+        template <typename T>
+        T* get_test()
         {
-            auto it{ m_test_classes.find(name) };
+            auto it{ m_test_classes.find(std::type_index{ typeid(T) }) };
             if (it != m_test_classes.end())
             {
                 return (T*)(it->second.get());
             }
             return nullptr;
         }
-        void run(const std::string& name)
+        template <typename T>
+        void run()
         {
-            if (test_base * cls{ get_test(name) })
+            if (test_base * cls{ get_test<T>() })
             {
                 cls->run();
             }
         }
-        void run(const std::string& name, const std::string& test_name)
+        template <typename T>
+        void run(const std::string& name)
         {
-            if (test_base * cls{ get_test(name) })
+            if (test_base * cls{ get_test<T>() })
             {
-                cls->run(test_name);
+                cls->run(name);
             }
         }
     };
